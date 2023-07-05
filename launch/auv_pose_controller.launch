@@ -1,0 +1,6 @@
+<launch>
+    <!-- cuando se cree el objeto del controller mandarle los Kpid desde este launch cmo params -->
+    <!-- publicar las max velocidades a un topico -->
+    <!-- mover el goal a una velocidad constante -->
+    <node name="pose_controller" pkg="girona_utils" type="pid_action"/>
+</launch>

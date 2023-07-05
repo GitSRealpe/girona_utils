@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>girona_utils</name>
+  <version>0.0.0</version>
+  <description>The girona_utils package</description>
+
+  <!-- One maintainer tag required, multiple allowed, one person per tag -->
+  <!-- Example:  -->
+  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+  <maintainer email="srealper@todo.todo">srealper</maintainer>
+
+
+  <!-- One license tag required, multiple allowed, one license per tag -->
+  <!-- Commonly used license strings: -->
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>tf</depend>
+  <depend>tf2_ros</depend>
+
+  <depend>eigen</depend>
+  <depend>message_filters</depend>
+  <depend>filters</depend>
+  <depend>laser_geometry</depend>
+  <depend>pluginlib</depend>
+
+  <depend>interactive_markers</depend>
+  <depend>visualization_msgs</depend>
+
+  <depend>eigen_conversions</depend>
+
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>cola2_msgs</depend>
+
+
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>
