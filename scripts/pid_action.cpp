@@ -1,11 +1,13 @@
 #include <algorithm>
 #include <ros/ros.h>
-#include <nav_msgs/Path.h>
+
 #include <tf2_ros/transform_listener.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <eigen_conversions/eigen_msg.h>
 
+#include <nav_msgs/Path.h>
+#include <std_msgs/Float32.h>
 #include <cola2_msgs/BodyVelocityReq.h>
 
 #include <actionlib/server/simple_action_server.h>
@@ -38,8 +40,9 @@ public:
     ros::Time prev_t;
     Eigen::Matrix3d pid_err;
     bool near = false;
-
     cola2_msgs::BodyVelocityReq vel_req;
+
+    double max_vel = 0.7;
 
     PID(std::string name) : as_(nh_, name, false), action_name_(name)
     {
@@ -73,6 +76,12 @@ public:
         timer_ = nh_.createTimer(ros::Rate(10), &PID::update, this, false, false);
         as_.start();
     };
+
+    void changeVel(const std_msgs::Float32ConstPtr msg)
+    {
+        std::cout << "vel changed to " << msg->data << "\n";
+        max_vel = msg->data;
+    }
 
     void goalCB()
     {
@@ -142,14 +151,14 @@ public:
 
         prev_t = ros::Time::now();
 
-        std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -MAX_SPEED, MAX_SPEED) << "\n";
-        std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -MAX_SPEED, MAX_SPEED) << "\n";
-        std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -MAX_SPEED, MAX_SPEED) << "\n";
+        std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -max_vel, max_vel) << "\n";
+        std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -max_vel, max_vel) << "\n";
+        std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
         std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -0.785, 0.785) << "\n";
         // std::cout << "raw_yaw: " << err_yaw << "\n";
-        vel_req.twist.linear.x = std::clamp(pid_err.row(0).sum(), -MAX_SPEED, MAX_SPEED);
-        vel_req.twist.linear.y = std::clamp(pid_err.row(1).sum(), -MAX_SPEED, MAX_SPEED);
-        vel_req.twist.linear.z = std::clamp(pid_err.row(2).sum(), -MAX_SPEED, MAX_SPEED);
+        vel_req.twist.linear.x = std::clamp(pid_err.row(0).sum(), -max_vel, max_vel);
+        vel_req.twist.linear.y = std::clamp(pid_err.row(1).sum(), -max_vel, max_vel);
+        vel_req.twist.linear.z = std::clamp(pid_err.row(2).sum(), -max_vel, max_vel);
         vel_req.twist.angular.z = std::clamp(0.7 * err_yaw, -0.785, 0.785);
         vel_req.header.stamp = ros::Time::now();
 
@@ -163,7 +172,13 @@ int main(int argc, char **argv)
 {
     std::cout << "executing path\n";
     ros::init(argc, argv, "path_execution");
+    ros::NodeHandle n;
+    ros::NodeHandle nh("~");
 
     PID pid(ros::this_node::getName());
+    nh.getParam("max_vel", pid.max_vel);
+
+    ros::Subscriber sub = n.subscribe(ros::this_node::getName() + "/vel_target", 10, &PID::changeVel, &pid);
+
     ros::spin();
 }
