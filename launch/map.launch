@@ -1,0 +1,11 @@
+<launch>
+
+    <arg name="path" default="/home/srealper/ros_ws/doc_ws/pool1.bt"/>
+
+    <node pkg="octomap_server" type="octomap_server_node" name="octomap_talker" output="screen">
+        <param name="frame_id" type="string" value="world_ned"/>
+        <param name="map_file" value="$(arg path)"/>
+    </node>
+
+
+</launch>
