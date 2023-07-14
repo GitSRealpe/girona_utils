@@ -39,10 +39,13 @@
   <depend>nav_msgs</depend>
   <depend>cola2_msgs</depend>
 
+  <depend>octomap_ros</depend>
+  <depend>octomap_msgs</depend>
+
+  <depend>rviz_visual_tools</depend>
 
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
-
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

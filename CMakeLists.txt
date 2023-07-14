@@ -24,6 +24,14 @@ include(macros)
 find_package(catkin REQUIRED)
 find_package(Eigen3 REQUIRED)
 
+find_package(fcl REQUIRED)
+message("fcl prints")
+# message("1 ${fcl_FOUND}")
+# message("2 ${FCL_INCLUDE_DIRS}")
+# message("3 ${FCL_LIBRARY_DIRS}")
+# message("4 ${FCL_LIBRARIES}")
+# message("5 ${FCL_VERSION}")
+
 list(APPEND CATKIN_SOURCES
     roscpp
     rospy
@@ -34,6 +42,9 @@ list(APPEND CATKIN_SOURCES
     cola2_msgs
     std_msgs
     geometry_msgs
+    octomap_msgs
+    octomap_ros
+    rviz_visual_tools
   )
 
 find_package(catkin REQUIRED COMPONENTS ${CATKIN_SOURCES} message_generation actionlib)
@@ -78,6 +89,7 @@ list(APPEND INCLUDES
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${FCL_INCLUDE_DIRS}
   )
 
 include_directories(SYSTEM ${INCLUDES})
@@ -85,10 +97,12 @@ include_directories(SYSTEM ${INCLUDES})
 list(APPEND LIBRARIES
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${FCL_LIBRARIES}
 )
 
 
 add_script(pid_action scripts)
+add_script(path_following_server scripts)
 # add_script(odom2tf scripts/utils)
 
 #############
