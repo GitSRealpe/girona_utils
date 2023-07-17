@@ -37,7 +37,9 @@ list(APPEND CATKIN_SOURCES
     rospy
     nav_msgs
     tf
+    tf2
     tf2_ros
+    eigen_conversions
     message_filters
     cola2_msgs
     std_msgs
@@ -97,6 +99,7 @@ include_directories(SYSTEM ${INCLUDES})
 list(APPEND LIBRARIES
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${EIGEN_LIBRARIES}
     ${FCL_LIBRARIES}
 )
 
