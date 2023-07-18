@@ -140,7 +140,7 @@ public:
     std::shared_ptr<CollisionManager> colMan_;
 
     ros::Timer pathTimer;
-    ros::Subscriber sub;
+    ros::Subscriber subFeed;
 
     std::shared_ptr<actionlib::SimpleActionClient<girona_utils::PIDAction>> pidClient;
     Eigen::Isometry3d feedMat;
@@ -148,15 +148,13 @@ public:
 
     PathManager(ros::NodeHandle nh)
     {
-        pathTimer = nh.createTimer(ros::Duration(1), &PathManager::manager, this, false, false);
+        pathTimer = nh.createTimer(ros::Duration(0.5), &PathManager::manager, this, false, false);
         colMan_ = std::make_shared<CollisionManager>(nh);
         colMan_->valor = "lunes";
         std::cout << "el collision manager object es: " << colMan_->valor << "\n";
 
-        // actionlib::SimpleActionClient<girona_utils::PIDAction> pidClient("path_execution");
-
         pidClient = std::make_shared<actionlib::SimpleActionClient<girona_utils::PIDAction>>("pid_controller");
-        sub = nh.subscribe("/pid_controller/feedback", 10, &PathManager::feedbackCb, this);
+        subFeed = nh.subscribe("/pid_controller/feedback", 10, &PathManager::feedbackCb, this);
     }
 
     void trajCallback(const nav_msgs::PathConstPtr pathMsg)
@@ -165,43 +163,33 @@ public:
         path_ = pathMsg;
         std::cout << "size of path in pathMan: " << path_->poses.size() << "\n";
         colMan_->path_ = pathMsg;
-        std::vector<geometry_msgs::Pose> path;
 
-        for (geometry_msgs::PoseStamped elem : pathMsg->poses)
-        {
-            path.push_back(elem.pose);
-            visual_tools_->publishArrow(elem.pose, rviz_visual_tools::RED, rviz_visual_tools::MEDIUM);
-        }
-        visual_tools_->publishPath(path, rviz_visual_tools::GREEN, rviz_visual_tools::LARGE);
-        visual_tools_->trigger();
+        counter = 0;
+        // std::vector<geometry_msgs::Pose> path;
+        // for (geometry_msgs::PoseStamped elem : pathMsg->poses)
+        // {
+        //     path.push_back(elem.pose);
+        //     visual_tools_->publishArrow(elem.pose, rviz_visual_tools::RED, rviz_visual_tools::MEDIUM);
+        // }
+        // visual_tools_->publishPath(path, rviz_visual_tools::GREEN, rviz_visual_tools::LARGE);
+        // visual_tools_->trigger();
 
         colMan_->col_res_.clear();
         colMan_->timer_.start();
 
-        ROS_INFO("Waiting for action server to start.");
+        ROS_INFO("Waiting for PID action server to start.");
         pidClient->waitForServer(); // will wait for infinite time
-        ROS_INFO("Action server started, starting path following.");
+        ROS_INFO("PID Action server started, starting path following.");
         pathTimer.start();
     }
 
-    // Called once when the goal completes
-    // void doneCb(const actionlib::SimpleClientGoalState &state,
-    //             const girona_utils::PIDResultConstPtr &result)
-    // {
-    // }
-
-    // // Called once when the goal becomes active
-    // void activeCb()
-    // {
-    // }
-
     // Called every time feedback is received for the goal
-    void feedbackCb(const girona_utils::PIDFeedbackConstPtr &feedMsg)
+    void feedbackCb(const girona_utils::PIDActionFeedbackConstPtr &feedMsg)
     {
-        feedMsg->current;
-        tf2::fromMsg(feedMsg->current, feedMat);
+        feedMsg->feedback.current;
+        tf2::fromMsg(feedMsg->feedback.current, feedMat);
         feedMat.translation().norm();
-        std::cout << feedMat.translation().norm();
+        std::cout << "error: " << feedMat.translation().norm() << "\n";
     }
 
     void manager(const ros::TimerEvent &)
@@ -222,10 +210,7 @@ public:
                 {
                     girona_utils::PIDGoal goal;
                     goal.goal = path_->poses.at(counter).pose;
-                    // hacer suscriptor para el feedback
                     pidClient->sendGoal(goal);
-                    // pidClient->sendGoal(goal, &PathManager::activeCb, &PathManager::doneCb, &PathManager::feedbackCb);
-                    // pidClient->sendGoal(goal, boost::bind(&PathManager::activeCb, this, _1), boost::bind(&PathManager::activeCb, this, _1), boost::bind(&PathManager::activeCb, this, _1));
 
                     counter++;
                 }
