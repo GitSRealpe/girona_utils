@@ -42,7 +42,7 @@ public:
     bool near = false;
     cola2_msgs::BodyVelocityReq vel_req;
 
-    double max_vel = 0.7;
+    double max_vel = MAX_SPEED;
 
     PID(std::string name) : as_(nh_, name, false), action_name_(name)
     {
@@ -171,7 +171,7 @@ public:
 int main(int argc, char **argv)
 {
     std::cout << "executing path\n";
-    ros::init(argc, argv, "path_execution");
+    ros::init(argc, argv, "pid_controller");
     ros::NodeHandle n;
     ros::NodeHandle nh("~");
 
