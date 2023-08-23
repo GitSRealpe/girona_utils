@@ -12,6 +12,7 @@
 #include <nav_msgs/Path.h>
 #include <std_msgs/Float32.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <std_srvs/Trigger.h>
 
 // PID action msgs
 #include <actionlib/client/simple_action_client.h>
@@ -139,7 +140,7 @@ public:
 
     std::shared_ptr<CollisionManager> colMan_;
 
-    ros::Timer pathTimer;
+    ros::Timer manTimer;
     ros::Subscriber subFeed;
 
     std::shared_ptr<actionlib::SimpleActionClient<girona_utils::PIDAction>> pidClient;
@@ -148,13 +149,22 @@ public:
 
     PathManager(ros::NodeHandle nh)
     {
-        pathTimer = nh.createTimer(ros::Duration(0.5), &PathManager::manager, this, false, false);
+        // manTimer = nh.createTimer(ros::Duration(0.5), &PathManager::manager, this, false, false);
         colMan_ = std::make_shared<CollisionManager>(nh);
         colMan_->valor = "lunes";
         std::cout << "el collision manager object es: " << colMan_->valor << "\n";
 
         pidClient = std::make_shared<actionlib::SimpleActionClient<girona_utils::PIDAction>>("pid_controller");
         subFeed = nh.subscribe("/pid_controller/feedback", 10, &PathManager::feedbackCb, this);
+    }
+
+    bool trigger(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res)
+    {
+        ROS_INFO("Trigger command received, following path.");
+        // manTimer.start();
+        colMan_->timer_.start();
+        manager();
+        return true;
     }
 
     void trajCallback(const nav_msgs::PathConstPtr pathMsg)
@@ -175,12 +185,11 @@ public:
         // visual_tools_->trigger();
 
         colMan_->col_res_.clear();
-        colMan_->timer_.start();
+        // colMan_->timer_.start();
 
         ROS_INFO("Waiting for PID action server to start.");
         pidClient->waitForServer(); // will wait for infinite time
-        ROS_INFO("PID Action server started, starting path following.");
-        pathTimer.start();
+        ROS_INFO("PID Action server started, waiting for command.");
     }
 
     // Called every time feedback is received for the goal
@@ -189,34 +198,72 @@ public:
         feedMsg->feedback.current;
         tf2::fromMsg(feedMsg->feedback.current, feedMat);
         feedMat.translation().norm();
-        std::cout << "error: " << feedMat.translation().norm() << "\n";
+        // std::cout << "error: " << feedMat.translation().norm() << "\n";
     }
 
-    void manager(const ros::TimerEvent &)
+    void manager()
     {
-
-        if (colMan_->col_res_.isCollision())
+        while (true)
         {
-            std::cout << "Stoped path manager \n";
-            pathTimer.stop();
-        }
-        else
-        {
-            // pop from path
-
-            if (counter < path_->poses.size())
+            if (colMan_->col_res_.isCollision())
             {
+                std::cout << "Stoped path manager \n";
+                colMan_->timer_.stop();
+                return;
+            }
+            else
+            {
+                // pop from path
                 if (feedMat.translation().norm() < 0.2)
                 {
-                    girona_utils::PIDGoal goal;
-                    goal.goal = path_->poses.at(counter).pose;
-                    pidClient->sendGoal(goal);
-
-                    counter++;
+                    if (counter < path_->poses.size())
+                    {
+                        girona_utils::PIDGoal goal;
+                        goal.goal = path_->poses.at(counter).pose;
+                        pidClient->sendGoal(goal);
+                        counter++;
+                    }
+                    else
+                    {
+                        std::cout << "end reached\n";
+                        colMan_->timer_.stop();
+                        return;
+                    }
                 }
             }
+            // ros::spinOnce();
+            ros::Duration(0.5).sleep();
         }
     }
+
+    // void manager(const ros::TimerEvent &)
+    // {
+    //     if (colMan_->col_res_.isCollision())
+    //     {
+    //         std::cout << "Stoped path manager \n";
+    //         manTimer.stop();
+    //     }
+    //     else
+    //     {
+    //         // pop from path
+    //         if (feedMat.translation().norm() < 0.2)
+    //         {
+    //             if (counter < path_->poses.size())
+    //             {
+    //                 girona_utils::PIDGoal goal;
+    //                 goal.goal = path_->poses.at(counter).pose;
+    //                 pidClient->sendGoal(goal);
+
+    //                 counter++;
+    //             }
+    //             else
+    //             {
+    //                 std::cout << "end reached\n";
+    //                 manTimer.stop();
+    //             }
+    //         }
+    //     }
+    // }
 };
 
 int main(int argc, char **argv)
@@ -227,15 +274,19 @@ int main(int argc, char **argv)
 
     PathManager pathMan(nh);
     ros::Subscriber sub = nh.subscribe("planner/path_result", 10, &PathManager::trajCallback, &pathMan);
+    ros::ServiceServer service = nh.advertiseService("startPath", &PathManager::trigger, &pathMan);
 
     // For visualizing things in rviz
     visual_tools_.reset(new rviz_visual_tools::RvizVisualTools("world_ned", "/rviz_visual_markers"));
 
-    while (ros::ok())
-    {
-        ros::spinOnce();
-        ros::Duration(0.1).sleep();
+    ros::AsyncSpinner spinner(4); // Use 4 threads
+    spinner.start();
+    ros::waitForShutdown();
+    // while (ros::ok())
+    // {
+    //     ros::spinOnce();
+    //     ros::Duration(0.1).sleep();
 
-        // ros::spin();
-    }
+    //     // ros::spin();
+    // }
 }
