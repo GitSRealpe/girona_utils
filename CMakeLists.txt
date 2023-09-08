@@ -53,9 +53,10 @@ find_package(catkin REQUIRED COMPONENTS ${CATKIN_SOURCES} message_generation act
 
 catkin_python_setup()
 
-# add_message_files(
-#   FILES
-# )
+add_message_files(
+  FILES
+  PathStatus.msg
+)
 
 # add_service_files(
 #   FILES

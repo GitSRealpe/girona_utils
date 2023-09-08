@@ -13,6 +13,7 @@
 #include <std_msgs/Float32.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <std_srvs/Trigger.h>
+#include <girona_utils/PathStatus.h>
 
 // PID action msgs
 #include <actionlib/client/simple_action_client.h>
@@ -118,6 +119,7 @@ public:
             fcl::CollisionRequestf col_req_;
             // fcl::CollisionResultf col_res_;
             fcl::collide(tree_obj_.get(), auv_co_.get(), col_req_, col_res_);
+            // fcl::collide(&*tree_obj_, auv_co_.get(), col_req_, col_res_);
 
             if (col_res_.isCollision())
             {
@@ -142,6 +144,8 @@ public:
 
     ros::Timer manTimer;
     ros::Subscriber subFeed;
+    ros::Publisher pathStPub;
+    girona_utils::PathStatus pathStatus;
 
     std::shared_ptr<actionlib::SimpleActionClient<girona_utils::PIDAction>> pidClient;
     Eigen::Isometry3d feedMat;
@@ -154,22 +158,22 @@ public:
         colMan_->valor = "lunes";
         std::cout << "el collision manager object es: " << colMan_->valor << "\n";
 
-        pidClient = std::make_shared<actionlib::SimpleActionClient<girona_utils::PIDAction>>("pid_controller");
-        subFeed = nh.subscribe("/pid_controller/feedback", 10, &PathManager::feedbackCb, this);
-    }
+        pathStPub = nh.advertise<girona_utils::PathStatus>("path_manager_server/status", 1, true);
+        pathStatus.status = girona_utils::PathStatus::NO_PATH;
+        pathStPub.publish(pathStatus);
 
-    bool trigger(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res)
-    {
-        ROS_INFO("Trigger command received, following path.");
-        // manTimer.start();
-        colMan_->timer_.start();
-        manager();
-        return true;
+        pidClient = std::make_shared<actionlib::SimpleActionClient<girona_utils::PIDAction>>("pid_controller");
+        ROS_INFO("Waiting for PID action server to start.");
+        pidClient->waitForServer(); // will wait for infinite time
+        ROS_INFO("PID Action server is active, waiting for path.");
+        subFeed = nh.subscribe("/pid_controller/feedback", 10, &PathManager::feedbackCb, this);
     }
 
     void trajCallback(const nav_msgs::PathConstPtr pathMsg)
     {
         std::cout << "path gotten\n";
+        pathStatus.status = girona_utils::PathStatus::PATH_RECEIVED;
+        pathStPub.publish(pathStatus);
         path_ = pathMsg;
         std::cout << "size of path in pathMan: " << path_->poses.size() << "\n";
         colMan_->path_ = pathMsg;
@@ -186,10 +190,18 @@ public:
 
         colMan_->col_res_.clear();
         // colMan_->timer_.start();
+        ROS_INFO("Path received, waiting for trigger signal.");
+    }
 
-        ROS_INFO("Waiting for PID action server to start.");
-        pidClient->waitForServer(); // will wait for infinite time
-        ROS_INFO("PID Action server started, waiting for command.");
+    bool trigger(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res)
+    {
+        ROS_INFO("Trigger command received, following path.");
+        pathStatus.status = girona_utils::PathStatus::STARTED;
+        pathStPub.publish(pathStatus);
+        // manTimer.start();
+        colMan_->timer_.start();
+        manager();
+        return true;
     }
 
     // Called every time feedback is received for the goal
@@ -207,7 +219,9 @@ public:
         {
             if (colMan_->col_res_.isCollision())
             {
-                std::cout << "Stoped path manager \n";
+                std::cout << "Stoped path following \n";
+                pathStatus.status = girona_utils::PathStatus::STOPPED;
+                pathStPub.publish(pathStatus);
                 colMan_->timer_.stop();
                 return;
             }
@@ -218,6 +232,8 @@ public:
                 {
                     if (counter < path_->poses.size())
                     {
+                        pathStatus.status = girona_utils::PathStatus::RUNNING;
+                        pathStPub.publish(pathStatus);
                         girona_utils::PIDGoal goal;
                         goal.goal = path_->poses.at(counter).pose;
                         pidClient->sendGoal(goal);
@@ -226,6 +242,8 @@ public:
                     else
                     {
                         std::cout << "end reached\n";
+                        pathStatus.status = girona_utils::PathStatus::END_REACHED;
+                        pathStPub.publish(pathStatus);
                         colMan_->timer_.stop();
                         return;
                     }
@@ -269,17 +287,17 @@ public:
 int main(int argc, char **argv)
 {
     std::cout << "started path following server\n";
-    ros::init(argc, argv, "path_following_server");
+    ros::init(argc, argv, "path_manager_server");
     ros::NodeHandle nh;
 
     PathManager pathMan(nh);
     ros::Subscriber sub = nh.subscribe("planner/path_result", 10, &PathManager::trajCallback, &pathMan);
-    ros::ServiceServer service = nh.advertiseService("startPath", &PathManager::trigger, &pathMan);
+    ros::ServiceServer service = nh.advertiseService("path_manager_server/startPath", &PathManager::trigger, &pathMan);
 
     // For visualizing things in rviz
     visual_tools_.reset(new rviz_visual_tools::RvizVisualTools("world_ned", "/rviz_visual_markers"));
 
-    ros::AsyncSpinner spinner(4); // Use 4 threads
+    ros::AsyncSpinner spinner(2); // Use 4 threads
     spinner.start();
     ros::waitForShutdown();
     // while (ros::ok())

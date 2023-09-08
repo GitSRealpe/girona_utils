@@ -1,0 +1,7 @@
+uint8 status
+uint8 STARTED=0
+uint8 STOPPED=1
+uint8 RUNNING=2
+uint8 END_REACHED=3
+uint8 PATH_RECEIVED=4
+uint8 NO_PATH=5
