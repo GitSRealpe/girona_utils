@@ -20,6 +20,9 @@
 #include <actionlib/client/terminal_state.h>
 #include <girona_utils/PIDAction.h>
 
+// Path action msg
+#include <girona_utils/PathAction.h>
+
 // octomap stuff
 #include <octomap/octomap.h>
 #include <octomap/OcTree.h>
@@ -36,6 +39,8 @@
 #include <fcl/narrowphase/collision.h>
 #include <fcl/narrowphase/collision_request.h>
 #include <fcl/narrowphase/collision_result.h>
+
+#include <actionlib/server/simple_action_server.h>
 
 #define DEPTH 14
 
@@ -55,8 +60,8 @@ public:
 
     // ros
     ros::Subscriber sub;
-    ros::Timer timer_;
-    nav_msgs::PathConstPtr path_;
+    ros::Timer timer_colchk;
+    nav_msgs::Path path_;
     visualization_msgs::Marker marker;
 
     std::string valor = "";
@@ -68,7 +73,7 @@ public:
         auv_box_ = std::shared_ptr<fcl::Boxf>(new fcl::Boxf(1.7, 1.2, 1.3));
         auv_co_ = std::shared_ptr<fcl::CollisionObjectf>(new fcl::CollisionObjectf(auv_box_));
 
-        timer_ = nh.createTimer(ros::Duration(1), &CollisionManager::collisionChecker, this, false, false);
+        timer_colchk = nh.createTimer(ros::Duration(1), &CollisionManager::collisionChecker, this, false, false);
 
         // crear el marker
         marker.header.frame_id = "world_ned";
@@ -97,7 +102,7 @@ public:
 
     void collisionChecker(const ros::TimerEvent &)
     {
-        std::cout << "checking collision from state: " << counter << " of: " << path_->poses.size() << "\n";
+        std::cout << "checking collision from state: " << counter << " of: " << path_.poses.size() << "\n";
 
         if (tree_obj_ == NULL)
         {
@@ -105,7 +110,7 @@ public:
             return;
         }
 
-        for (auto poseS = path_->poses.begin() + counter; poseS != path_->poses.end(); ++poseS)
+        for (auto poseS = path_.poses.begin() + counter; poseS != path_.poses.end(); ++poseS)
         {
             // auv position to compute collision
             auv_co_->setTranslation(Eigen::Vector3f(poseS->pose.position.x, poseS->pose.position.y, poseS->pose.position.z));
@@ -125,7 +130,7 @@ public:
             {
                 std::cout << "colision! \n";
                 ROS_WARN("Detected collision in path.");
-                timer_.stop();
+                timer_colchk.stop();
                 marker.pose = poseS->pose;
                 visual_tools_->publishMarker(marker);
                 visual_tools_->trigger();
@@ -138,8 +143,7 @@ public:
 class PathManager
 {
 public:
-    nav_msgs::PathConstPtr path_;
-
+    nav_msgs::Path path_;
     std::shared_ptr<CollisionManager> colMan_;
 
     ros::Timer manTimer;
@@ -151,16 +155,23 @@ public:
     Eigen::Isometry3d feedMat;
     double error = 0;
 
-    PathManager(ros::NodeHandle nh)
+    actionlib::SimpleActionServer<girona_utils::PathAction> as_;
+    girona_utils::PathFeedback feedback;
+    girona_utils::PathResult result;
+
+    PathManager(ros::NodeHandle nh) : as_(nh, "name", false)
     {
         // manTimer = nh.createTimer(ros::Duration(0.5), &PathManager::manager, this, false, false);
         colMan_ = std::make_shared<CollisionManager>(nh);
         colMan_->valor = "lunes";
         std::cout << "el collision manager object es: " << colMan_->valor << "\n";
 
-        pathStPub = nh.advertise<girona_utils::PathStatus>("path_manager_server/status", 1, true);
-        pathStatus.status = girona_utils::PathStatus::NO_PATH;
-        pathStPub.publish(pathStatus);
+        // register the goal and feeback callbacks
+        as_.registerGoalCallback(boost::bind(&PathManager::goalCB, this));
+        as_.registerPreemptCallback(boost::bind(&PathManager::preemptCB, this));
+
+        feedback.status = girona_utils::PathStatus::NO_PATH;
+        as_.publishFeedback(feedback);
 
         pidClient = std::make_shared<actionlib::SimpleActionClient<girona_utils::PIDAction>>("pid_controller");
         ROS_INFO("Waiting for PID action server to start.");
@@ -169,39 +180,43 @@ public:
         subFeed = nh.subscribe("/pid_controller/feedback", 10, &PathManager::feedbackCb, this);
     }
 
-    void trajCallback(const nav_msgs::PathConstPtr pathMsg)
+    void goalCB()
     {
-        std::cout << "path gotten\n";
-        pathStatus.status = girona_utils::PathStatus::PATH_RECEIVED;
-        pathStPub.publish(pathStatus);
-        path_ = pathMsg;
-        std::cout << "size of path in pathMan: " << path_->poses.size() << "\n";
-        colMan_->path_ = pathMsg;
-
+        // accept the new goal
+        // reset variables
         counter = 0;
-        // std::vector<geometry_msgs::Pose> path;
-        // for (geometry_msgs::PoseStamped elem : pathMsg->poses)
-        // {
-        //     path.push_back(elem.pose);
-        //     visual_tools_->publishArrow(elem.pose, rviz_visual_tools::RED, rviz_visual_tools::MEDIUM);
-        // }
-        // visual_tools_->publishPath(path, rviz_visual_tools::GREEN, rviz_visual_tools::LARGE);
-        // visual_tools_->trigger();
-
         colMan_->col_res_.clear();
-        // colMan_->timer_.start();
-        ROS_INFO("Path received, waiting for trigger signal.");
+        // as_.isPreemptRequested();
+        std::cout << "path gotten\n";
+        feedback.status = girona_utils::PathStatus::PATH_RECEIVED;
+        as_.publishFeedback(feedback);
+        path_ = as_.acceptNewGoal()->path;
+        std::cout << "size of path in pathMan: " << path_.poses.size() << "\n";
+        colMan_->path_ = path_;
+
+        feedback.status = girona_utils::PathStatus::STARTED;
+        as_.publishFeedback(feedback);
+
+        colMan_->timer_colchk.start();
+        manager();
     }
 
-    bool trigger(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res)
+    void preemptCB()
     {
-        ROS_INFO("Trigger command received, following path.");
-        pathStatus.status = girona_utils::PathStatus::STARTED;
-        pathStPub.publish(pathStatus);
-        // manTimer.start();
-        colMan_->timer_.start();
-        manager();
-        return true;
+        // set the action state to preempted
+        if (as_.isNewGoalAvailable())
+        {
+            ROS_INFO("New path received");
+        }
+        else
+        {
+            ROS_INFO("Preempted");
+            // but what kind of preempt
+            feedback.status = girona_utils::PathStatus::STOPPED;
+            as_.publishFeedback(feedback);
+            as_.setPreempted();
+            // timer_.stop();
+        }
     }
 
     // Called every time feedback is received for the goal
@@ -222,7 +237,7 @@ public:
                 std::cout << "Stoped path following \n";
                 pathStatus.status = girona_utils::PathStatus::STOPPED;
                 pathStPub.publish(pathStatus);
-                colMan_->timer_.stop();
+                colMan_->timer_colchk.stop();
                 return;
             }
             else
@@ -230,21 +245,23 @@ public:
                 // pop from path
                 if (feedMat.translation().norm() < 0.2)
                 {
-                    if (counter < path_->poses.size())
+                    if (counter < path_.poses.size())
                     {
-                        pathStatus.status = girona_utils::PathStatus::RUNNING;
-                        pathStPub.publish(pathStatus);
+                        feedback.status = girona_utils::PathStatus::RUNNING;
+                        as_.publishFeedback(feedback);
+
                         girona_utils::PIDGoal goal;
-                        goal.goal = path_->poses.at(counter).pose;
+                        goal.goal = path_.poses.at(counter).pose;
                         pidClient->sendGoal(goal);
                         counter++;
                     }
                     else
                     {
                         std::cout << "end reached\n";
-                        pathStatus.status = girona_utils::PathStatus::END_REACHED;
-                        pathStPub.publish(pathStatus);
-                        colMan_->timer_.stop();
+                        feedback.status = girona_utils::PathStatus::END_REACHED;
+                        as_.publishFeedback(feedback);
+
+                        colMan_->timer_colchk.stop();
                         return;
                     }
                 }
@@ -253,35 +270,6 @@ public:
             ros::Duration(0.5).sleep();
         }
     }
-
-    // void manager(const ros::TimerEvent &)
-    // {
-    //     if (colMan_->col_res_.isCollision())
-    //     {
-    //         std::cout << "Stoped path manager \n";
-    //         manTimer.stop();
-    //     }
-    //     else
-    //     {
-    //         // pop from path
-    //         if (feedMat.translation().norm() < 0.2)
-    //         {
-    //             if (counter < path_->poses.size())
-    //             {
-    //                 girona_utils::PIDGoal goal;
-    //                 goal.goal = path_->poses.at(counter).pose;
-    //                 pidClient->sendGoal(goal);
-
-    //                 counter++;
-    //             }
-    //             else
-    //             {
-    //                 std::cout << "end reached\n";
-    //                 manTimer.stop();
-    //             }
-    //         }
-    //     }
-    // }
 };
 
 int main(int argc, char **argv)
@@ -291,20 +279,18 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     PathManager pathMan(nh);
-    ros::Subscriber sub = nh.subscribe("planner/path_result", 10, &PathManager::trajCallback, &pathMan);
-    ros::ServiceServer service = nh.advertiseService("path_manager_server/startPath", &PathManager::trigger, &pathMan);
 
     // For visualizing things in rviz
     visual_tools_.reset(new rviz_visual_tools::RvizVisualTools("world_ned", "/rviz_visual_markers"));
 
-    ros::AsyncSpinner spinner(2); // Use 4 threads
-    spinner.start();
-    ros::waitForShutdown();
+    // ros::AsyncSpinner spinner(2); // Use 4 threads
+    // spinner.start();
+    // ros::waitForShutdown();
     // while (ros::ok())
     // {
     //     ros::spinOnce();
     //     ros::Duration(0.1).sleep();
 
-    //     // ros::spin();
+    ros::spin();
     // }
 }

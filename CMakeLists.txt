@@ -64,13 +64,16 @@ add_message_files(
 
 add_action_files(
   DIRECTORY action 
-  FILES PID.action)
+  FILES 
+  PID.action
+  Path.action)
 
 generate_messages(
  DEPENDENCIES
  geometry_msgs
  std_msgs
  actionlib_msgs
+ nav_msgs
 )
 
 catkin_package(
