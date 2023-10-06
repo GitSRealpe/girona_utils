@@ -47,6 +47,7 @@ list(APPEND CATKIN_SOURCES
     octomap_msgs
     octomap_ros
     rviz_visual_tools
+    iauv_kinematic_control
   )
 
 find_package(catkin REQUIRED COMPONENTS ${CATKIN_SOURCES} message_generation actionlib)
@@ -55,7 +56,7 @@ catkin_python_setup()
 
 add_message_files(
   FILES
-  PathStatus.msg
+  # PathStatus.msg
 )
 
 # add_service_files(
@@ -110,6 +111,7 @@ list(APPEND LIBRARIES
 
 add_script(pid_action scripts)
 add_script(path_following_server scripts)
+add_script(path_following_server_tp scripts)
 # add_script(odom2tf scripts/utils)
 
 #############
