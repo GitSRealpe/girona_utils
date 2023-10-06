@@ -11,6 +11,6 @@ uint8 RUNNING=2
 uint8 END_REACHED=3
 uint8 PATH_RECEIVED=4
 uint8 NO_PATH=5
-uint8 status
+int32 phase
 geometry_msgs/Pose current
 
