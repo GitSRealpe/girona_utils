@@ -13,7 +13,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include <girona_utils/PIDAction.h>
 
-#define MAX_SPEED 0.7
+#define MAX_SPEED 0.1
 
 class PID
 {
@@ -71,6 +71,12 @@ public:
         vel_req.header.frame_id = "world_ned";
         vel_req.goal.requester = "sebas";
         vel_req.goal.priority = cola2_msgs::GoalDescriptor::PRIORITY_NORMAL;
+        vel_req.disable_axis.x = false;
+        vel_req.disable_axis.y = false;
+        vel_req.disable_axis.z = false;
+        vel_req.disable_axis.yaw = false;
+        vel_req.disable_axis.roll = true;
+        vel_req.disable_axis.pitch = true;
         pub = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, true);
 
         timer_ = nh_.createTimer(ros::Rate(10), &PID::update, this, false, false);
