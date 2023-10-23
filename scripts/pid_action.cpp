@@ -9,11 +9,14 @@
 #include <nav_msgs/Path.h>
 #include <std_msgs/Float32.h>
 #include <cola2_msgs/BodyVelocityReq.h>
+#include <geometry_msgs/TwistStamped.h>
 
 #include <actionlib/server/simple_action_server.h>
 #include <girona_utils/PIDAction.h>
 
-#define MAX_SPEED 0.1
+#include <functional> // For std::function
+
+#define MAX_SPEED 0.7
 
 class PID
 {
@@ -27,11 +30,11 @@ protected:
     ros::Timer timer_;
 
 public:
-    ros::Publisher pub;
-    geometry_msgs::TransformStamped t;
-    geometry_msgs::Pose setPoint;
     std::shared_ptr<tf2_ros::TransformListener> tfListener;
     tf2_ros::Buffer tfBuffer;
+
+    geometry_msgs::TransformStamped t;
+    geometry_msgs::Pose setPoint;
     tf2::Transform mat_curr;
     tf2::Transform mat_goal;
     tf2::Transform error;
@@ -39,13 +42,25 @@ public:
     ros::Duration dt;
     ros::Time prev_t;
     Eigen::Matrix3d pid_err;
-    bool near = false;
+
+    ros::Publisher pubCOLA2;
+    ros::Publisher pubTP;
     cola2_msgs::BodyVelocityReq vel_req;
+    geometry_msgs::TwistStamped vel_tp_req;
 
     double max_vel = MAX_SPEED;
 
+    std::string interface = "nothing";
+
     PID(std::string name) : as_(nh_, name, false), action_name_(name)
     {
+
+        ros::NodeHandle nhp("~");
+        nhp.getParam("max_vel", max_vel);
+        nhp.getParam("output_interface", interface);
+        std::cout << "using " << interface << " as velocity controller \n";
+        std::cout << "max velocity set at " << max_vel << " m/s \n";
+
         // register the goal and feeback callbacks
         as_.registerGoalCallback(boost::bind(&PID::goalCB, this));
         as_.registerPreemptCallback(boost::bind(&PID::preemptCB, this));
@@ -68,20 +83,41 @@ public:
         }
         prev_t = ros::Time::now();
 
-        vel_req.header.frame_id = "world_ned";
-        vel_req.goal.requester = "sebas";
-        vel_req.goal.priority = cola2_msgs::GoalDescriptor::PRIORITY_NORMAL;
-        vel_req.disable_axis.x = false;
-        vel_req.disable_axis.y = false;
-        vel_req.disable_axis.z = false;
-        vel_req.disable_axis.yaw = false;
-        vel_req.disable_axis.roll = true;
-        vel_req.disable_axis.pitch = true;
-        pub = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, true);
+        pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, false);
+        pubTP = nh_.advertise<geometry_msgs::TwistStamped>("/girona1000/tp_controller/tasks/auv_configuration/feedforward", 5, false);
 
         timer_ = nh_.createTimer(ros::Rate(10), &PID::update, this, false, false);
         as_.start();
-    };
+    }
+
+    void sendVelCOLA2(Eigen::Matrix3d err, double yaw)
+    {
+        vel_req.header.frame_id = "world_ned";
+        vel_req.goal.requester = "sebas";
+        vel_req.goal.priority = cola2_msgs::GoalDescriptor::PRIORITY_NORMAL;
+        // vel_req.disable_axis.x = false;
+        // vel_req.disable_axis.y = false;
+        // vel_req.disable_axis.z = false;
+        // vel_req.disable_axis.yaw = false;
+        vel_req.disable_axis.roll = true;
+        vel_req.disable_axis.pitch = true;
+        vel_req.twist.linear.x = std::clamp(err.row(0).sum(), -max_vel, max_vel);
+        vel_req.twist.linear.y = std::clamp(err.row(1).sum(), -max_vel, max_vel);
+        vel_req.twist.linear.z = std::clamp(err.row(2).sum(), -max_vel, max_vel);
+        vel_req.twist.angular.z = std::clamp(0.7 * yaw, -0.785, 0.785);
+        vel_req.header.stamp = ros::Time::now();
+        pubCOLA2.publish(vel_req);
+    }
+
+    void sendVelTP(Eigen::Matrix3d err, double yaw)
+    {
+        vel_tp_req.header.frame_id = "world_ned";
+        vel_tp_req.header.stamp = ros::Time::now();
+        vel_tp_req.twist.linear.x = std::clamp(err.row(0).sum(), -max_vel, max_vel);
+        vel_tp_req.twist.linear.y = std::clamp(err.row(1).sum(), -max_vel, max_vel);
+        vel_tp_req.twist.linear.z = std::clamp(err.row(2).sum(), -max_vel, max_vel);
+        vel_tp_req.twist.angular.z = std::clamp(0.7 * yaw, -0.785, 0.785);
+    }
 
     void changeVel(const std_msgs::Float32ConstPtr msg)
     {
@@ -162,15 +198,15 @@ public:
         std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
         std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -0.785, 0.785) << "\n";
         // std::cout << "raw_yaw: " << err_yaw << "\n";
-        vel_req.twist.linear.x = std::clamp(pid_err.row(0).sum(), -max_vel, max_vel);
-        vel_req.twist.linear.y = std::clamp(pid_err.row(1).sum(), -max_vel, max_vel);
-        vel_req.twist.linear.z = std::clamp(pid_err.row(2).sum(), -max_vel, max_vel);
-        vel_req.twist.angular.z = std::clamp(0.7 * err_yaw, -0.785, 0.785);
-        vel_req.header.stamp = ros::Time::now();
 
-        pub.publish(vel_req);
-
-        // near = error.getOrigin().length() < 0.2;
+        if (interface == "tp_controller")
+        {
+            sendVelTP(pid_err, err_yaw);
+        }
+        else
+        {
+            sendVelCOLA2(pid_err, err_yaw);
+        }
     }
 };
 
@@ -179,10 +215,8 @@ int main(int argc, char **argv)
     std::cout << "executing path\n";
     ros::init(argc, argv, "pid_controller");
     ros::NodeHandle n;
-    ros::NodeHandle nh("~");
 
     PID pid(ros::this_node::getName());
-    nh.getParam("max_vel", pid.max_vel);
 
     ros::Subscriber sub = n.subscribe(ros::this_node::getName() + "/vel_target", 10, &PID::changeVel, &pid);
 

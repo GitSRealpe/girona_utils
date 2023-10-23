@@ -4,7 +4,8 @@
     <!-- mover el goal a una velocidad constante -->
     <!-- tire warning de que los thrusters estan apagados -->
     <node name="pid_controller" pkg="girona_utils" type="pid_action" output="screen">
-        <param name="max_vel" value="2"/>
+        <param name="max_vel" value="0.1"/>
+        <param name="output_interface" value="cola2_controller"/>
     </node>
 
 </launch>
