@@ -44,7 +44,8 @@ public:
     Eigen::Matrix3d pid_err;
 
     ros::Publisher pubCOLA2;
-    ros::Publisher pubTP;
+    ros::Publisher pubTPvel;
+    ros::Publisher pubTPdummy;
     cola2_msgs::BodyVelocityReq vel_req;
     geometry_msgs::TwistStamped vel_tp_req;
 
@@ -72,6 +73,7 @@ public:
             try
             {
                 t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
+                std::cout << "transform gotten\n";
                 break;
             }
             catch (tf2::TransformException &ex)
@@ -84,7 +86,9 @@ public:
         prev_t = ros::Time::now();
 
         pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, false);
-        pubTP = nh_.advertise<geometry_msgs::TwistStamped>("/girona1000/tp_controller/tasks/auv_configuration/feedforward", 5, false);
+        pubTPvel = nh_.advertise<geometry_msgs::TwistStamped>("/girona1000/tp_controller/tasks/auv_configuration/feedforward", 5, false);
+
+        pubTPdummy = nh_.advertise<geometry_msgs::PoseStamped>("/girona1000/tp_controller/tasks/auv_configuration/target", 5, false);
 
         timer_ = nh_.createTimer(ros::Rate(10), &PID::update, this, false, false);
         as_.start();
@@ -117,6 +121,12 @@ public:
         vel_tp_req.twist.linear.y = std::clamp(err.row(1).sum(), -max_vel, max_vel);
         vel_tp_req.twist.linear.z = std::clamp(err.row(2).sum(), -max_vel, max_vel);
         vel_tp_req.twist.angular.z = std::clamp(0.7 * yaw, -0.785, 0.785);
+        pubTPvel.publish(vel_tp_req);
+        geometry_msgs::PoseStamped dummy_pose;
+        dummy_pose.header.frame_id = "world_ned";
+        dummy_pose.header.stamp = ros::Time::now();
+        dummy_pose.pose.orientation.w = 1;
+        pubTPdummy.publish(dummy_pose);
     }
 
     void changeVel(const std_msgs::Float32ConstPtr msg)
