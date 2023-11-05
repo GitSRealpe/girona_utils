@@ -267,6 +267,9 @@ public:
                         feedback.phase = girona_utils::PathFeedback::END_REACHED;
                         as_.publishFeedback(feedback);
 
+                        girona_utils::PathResult res;
+                        res.success = true;
+                        as_.setSucceeded(res);
                         colMan_->timer_colchk.stop();
                         return;
                     }
