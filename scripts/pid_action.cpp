@@ -171,13 +171,20 @@ public:
     {
 
         // std::cout << "controlando\n";
-
         tf2::fromMsg(setPoint, mat_goal);
         t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
         tf2::fromMsg(t.transform, mat_curr);
         error = mat_curr.inverseTimes(mat_goal);
 
-        tf2::toMsg(error, feedback_.current);
+        feedback_.target = setPoint;
+        feedback_.current.position.x = t.transform.translation.x;
+        feedback_.current.position.y = t.transform.translation.y;
+        feedback_.current.position.z = t.transform.translation.z;
+        feedback_.current.orientation.x = t.transform.rotation.x;
+        feedback_.current.orientation.y = t.transform.rotation.y;
+        feedback_.current.orientation.z = t.transform.rotation.z;
+        feedback_.current.orientation.w = t.transform.rotation.w;
+        tf2::toMsg(error, feedback_.error);
         as_.publishFeedback(feedback_);
 
         // get orientation as rpy

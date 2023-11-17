@@ -5,4 +5,6 @@ geometry_msgs/Pose goal
 bool done
 ---
 #feedback
+geometry_msgs/Pose target
 geometry_msgs/Pose current
+geometry_msgs/Pose error
