@@ -223,8 +223,8 @@ public:
     // Called every time feedback is received for the goal
     void feedbackCb(const girona_utils::PIDActionFeedbackConstPtr &feedMsg)
     {
-        feedMsg->feedback.current;
-        tf2::fromMsg(feedMsg->feedback.current, feedMat);
+        feedMsg->feedback.error;
+        tf2::fromMsg(feedMsg->feedback.error, feedMat);
         feedMat.translation().norm();
         // std::cout << "error: " << feedMat.translation().norm() << "\n";
     }
