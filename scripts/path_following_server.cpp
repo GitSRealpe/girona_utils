@@ -153,6 +153,7 @@ public:
 
     std::shared_ptr<actionlib::SimpleActionClient<girona_utils::PIDAction>> pidClient;
     Eigen::Isometry3d feedMat;
+    double yaw_error = 0;
     double error = 0;
 
     actionlib::SimpleActionServer<girona_utils::PathAction> as_;
@@ -231,7 +232,7 @@ public:
     void manager()
     {
         std::cout << "in actual manager\n";
-        while (true)
+        while (ros::ok())
         {
             if (colMan_->col_res_.isCollision())
             {
@@ -246,7 +247,8 @@ public:
             {
                 std::cout << "en el else" << feedMat.translation().norm() << "\n";
                 // pop from path
-                if (feedMat.translation().norm() < 0.2)
+                yaw_error = atan2(feedMat.translation()[1], feedMat.translation()[0]);
+                if (feedMat.translation().norm() < 0.2 && yaw_error < 0.35)
                 {
                     std::cout << "en el error<0.2\n";
                     if (counter < path_.poses.size())
