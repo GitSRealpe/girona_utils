@@ -5,6 +5,7 @@
     <!-- tire warning de que los thrusters estan apagados -->
     <node name="pid_controller" pkg="girona_utils" type="pid_action" output="screen">
         <param name="max_vel" value="0.1"/>
+        <param name="max_rot_vel" value="0.35"/>
         <param name="output_interface" value="cola2_controller"/>
         <!-- <param name="output_interface" value="tp_controller"/> -->
     </node>

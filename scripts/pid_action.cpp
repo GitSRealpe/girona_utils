@@ -17,6 +17,7 @@
 #include <functional> // For std::function
 
 #define MAX_SPEED 0.7
+#define MAX_ROTATION_SPEED 0.35
 
 class PID
 {
@@ -50,6 +51,7 @@ public:
     geometry_msgs::TwistStamped vel_tp_req;
 
     double max_vel = MAX_SPEED;
+    double max_rot_vel = MAX_ROTATION_SPEED;
 
     std::string interface = "nothing";
 
@@ -58,9 +60,11 @@ public:
 
         ros::NodeHandle nhp("~");
         nhp.getParam("max_vel", max_vel);
+        nhp.getParam("max_rot_vel", max_rot_vel);
         nhp.getParam("output_interface", interface);
         std::cout << "using " << interface << " as velocity controller \n";
         std::cout << "max velocity set at " << max_vel << " m/s \n";
+        std::cout << "max rotation velocity set at " << max_rot_vel << " m/s \n";
 
         // register the goal and feeback callbacks
         as_.registerGoalCallback(boost::bind(&PID::goalCB, this));
@@ -74,6 +78,7 @@ public:
             {
                 t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
                 std::cout << "transform gotten\n";
+                std::cout << t.transform.translation << "\n";
                 break;
             }
             catch (tf2::TransformException &ex)
@@ -108,7 +113,7 @@ public:
         vel_req.twist.linear.x = std::clamp(err.row(0).sum(), -max_vel, max_vel);
         vel_req.twist.linear.y = std::clamp(err.row(1).sum(), -max_vel, max_vel);
         vel_req.twist.linear.z = std::clamp(err.row(2).sum(), -max_vel, max_vel);
-        vel_req.twist.angular.z = std::clamp(0.7 * yaw, -0.785, 0.785);
+        vel_req.twist.angular.z = std::clamp(0.7 * yaw, -max_rot_vel, max_rot_vel);
         vel_req.header.stamp = ros::Time::now();
         pubCOLA2.publish(vel_req);
     }
@@ -120,7 +125,7 @@ public:
         vel_tp_req.twist.linear.x = std::clamp(err.row(0).sum(), -max_vel, max_vel);
         vel_tp_req.twist.linear.y = std::clamp(err.row(1).sum(), -max_vel, max_vel);
         vel_tp_req.twist.linear.z = std::clamp(err.row(2).sum(), -max_vel, max_vel);
-        vel_tp_req.twist.angular.z = std::clamp(0.7 * yaw, -0.785, 0.785);
+        vel_tp_req.twist.angular.z = std::clamp(0.7 * yaw, -max_rot_vel, max_rot_vel);
         pubTPvel.publish(vel_tp_req);
         geometry_msgs::PoseStamped dummy_pose;
         dummy_pose.header.frame_id = "world_ned";
@@ -206,7 +211,7 @@ public:
         std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -max_vel, max_vel) << "\n";
         std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -max_vel, max_vel) << "\n";
         std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
-        std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -0.785, 0.785) << "\n";
+        std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -max_rot_vel, max_rot_vel) << "\n";
         // std::cout << "raw_yaw: " << err_yaw << "\n";
 
         if (interface == "tp_controller")
