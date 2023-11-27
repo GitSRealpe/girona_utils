@@ -245,10 +245,12 @@ public:
             }
             else
             {
-                std::cout << "en el else" << feedMat.translation().norm() << "\n";
+                std::cout << "free of collision, pos_error: " << feedMat.translation().norm() << "\n";
                 // pop from path
-                yaw_error = atan2(feedMat.translation()[1], feedMat.translation()[0]);
-                if (feedMat.translation().norm() < 0.2 && yaw_error < 0.35)
+                // yaw_error = atan2(feedMat.translation()[1], feedMat.translation()[0]);
+                yaw_error = feedMat.rotation().matrix().eulerAngles(0, 1, 2)[2];
+                // &&std::abs(yaw_error) < 0.35
+                if (feedMat.translation().norm() < 0.2)
                 {
                     std::cout << "en el error<0.2\n";
                     if (counter < path_.poses.size())
