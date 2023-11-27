@@ -88,7 +88,10 @@ public:
                 continue;
             }
         }
-        prev_t = ros::Time::now();
+
+        pid_err.setZero();
+        // prev_t = ros::Time::now();
+        prev_t = ros::Time(0);
 
         pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, false);
         pubTPvel = nh_.advertise<geometry_msgs::TwistStamped>("/girona1000/tp_controller/tasks/auv_configuration/feedforward", 5, false);
@@ -172,11 +175,17 @@ public:
 
         // std::cout << "controlando\n";
         tf2::fromMsg(setPoint, mat_goal);
+        feedback_.target = setPoint;
+
         t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
         tf2::fromMsg(t.transform, mat_curr);
-        error = mat_curr.inverseTimes(mat_goal);
 
-        feedback_.target = setPoint;
+        // Eigen::Isometry3d tcurr;
+        // tf::transformMsgToEigen(t.transform, tcurr);
+        // Eigen::Isometry3d tset;
+        // tf::poseMsgToEigen(setPoint, tset);
+        // std::cout << "x eigen_error:" << (tcurr.inverse() * tset).translation()[0] << "\n";
+
         feedback_.current.position.x = t.transform.translation.x;
         feedback_.current.position.y = t.transform.translation.y;
         feedback_.current.position.z = t.transform.translation.z;
@@ -184,6 +193,8 @@ public:
         feedback_.current.orientation.y = t.transform.rotation.y;
         feedback_.current.orientation.z = t.transform.rotation.z;
         feedback_.current.orientation.w = t.transform.rotation.w;
+
+        error = mat_curr.inverseTimes(mat_goal);
         tf2::toMsg(error, feedback_.error);
         as_.publishFeedback(feedback_);
 
@@ -198,8 +209,8 @@ public:
 
         // integral for steady state error, but adds inestability
         dt = ros::Time::now() - prev_t;
-        // integral += error.getOrigin().y() * dt.toSec();
-        // pid_err(1, 1) = 0.1 * integral;
+        // integral += error.getOrigin().z() * dt.toSec();
+        // pid_err(2, 1) = 0.1 * integral;
 
         // derivative smooths
         derivative = (error.getOrigin().x() - last_error_x) / dt.toSec();
@@ -213,8 +224,14 @@ public:
         last_error_y = error.getOrigin().y();
         last_error_z = error.getOrigin().z();
 
-        prev_t = ros::Time::now();
+        // std::cout << "x error:" << setPoint.position.x - t.transform.translation.x << "\n";
+        // std::cout << "y error:" << setPoint.position.y - t.transform.translation.y << "\n";
+        // std::cout << "z error:" << setPoint.position.z - t.transform.translation.z << "\n";
 
+        // std::cout << "x proportional:" << pid_err(0, 0) << "\n";
+        // std::cout << "x integral:" << pid_err(0, 1) << "\n";
+        // std::cout << "x derivative:" << pid_err(0, 2) << "\n";
+        // std::cout << "x action unclamped:" << pid_err.row(0).sum() << "\n";
         std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -max_vel, max_vel) << "\n";
         std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -max_vel, max_vel) << "\n";
         std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
@@ -229,6 +246,9 @@ public:
         {
             sendVelCOLA2(pid_err, err_yaw);
         }
+
+        prev_t = ros::Time::now();
+        ros::Duration(0.1).sleep();
     }
 };
 
