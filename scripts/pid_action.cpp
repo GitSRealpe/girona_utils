@@ -166,6 +166,7 @@ public:
         {
             ROS_INFO("%s: Preempted", action_name_.c_str());
             as_.setPreempted();
+            // as_.shutdown(); ?
             timer_.stop();
         }
     }
@@ -174,18 +175,9 @@ public:
     {
 
         // std::cout << "controlando\n";
-        tf2::fromMsg(setPoint, mat_goal);
         feedback_.target = setPoint;
 
-        t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
-        tf2::fromMsg(t.transform, mat_curr);
-
-        // Eigen::Isometry3d tcurr;
-        // tf::transformMsgToEigen(t.transform, tcurr);
-        // Eigen::Isometry3d tset;
-        // tf::poseMsgToEigen(setPoint, tset);
-        // std::cout << "x eigen_error:" << (tcurr.inverse() * tset).translation()[0] << "\n";
-
+        t = tfBuffer.lookupTransform("world_ned", "girona1000/origin", ros::Time(0));
         feedback_.current.position.x = t.transform.translation.x;
         feedback_.current.position.y = t.transform.translation.y;
         feedback_.current.position.z = t.transform.translation.z;
@@ -193,9 +185,12 @@ public:
         feedback_.current.orientation.y = t.transform.rotation.y;
         feedback_.current.orientation.z = t.transform.rotation.z;
         feedback_.current.orientation.w = t.transform.rotation.w;
+        tf2::fromMsg(t.transform, mat_curr);
 
+        tf2::fromMsg(setPoint, mat_goal);
         error = mat_curr.inverseTimes(mat_goal);
         tf2::toMsg(error, feedback_.error);
+
         as_.publishFeedback(feedback_);
 
         // get orientation as rpy
