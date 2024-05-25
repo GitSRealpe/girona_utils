@@ -110,8 +110,8 @@ list(APPEND LIBRARIES
 
 
 add_script(pid_action scripts)
-add_script(path_following_server scripts)
-add_script(path_following_server_tp scripts)
+# add_script(path_following_server scripts)
+# add_script(path_following_server_tp scripts)
 # add_script(odom2tf scripts/utils)
 
 #############
