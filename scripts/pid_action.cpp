@@ -76,7 +76,7 @@ public:
         {
             try
             {
-                t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
+                t = tfBuffer.lookupTransform("world_ned", "girona500/origin", ros::Time(0));
                 std::cout << "transform gotten\n";
                 std::cout << t.transform.translation << "\n";
                 break;
@@ -93,10 +93,10 @@ public:
         // prev_t = ros::Time::now();
         prev_t = ros::Time(0);
 
-        pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, false);
-        pubTPvel = nh_.advertise<geometry_msgs::TwistStamped>("/girona1000/tp_controller/tasks/auv_configuration/feedforward", 5, false);
+        pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona500/controller/body_velocity_req", 5, false);
+        pubTPvel = nh_.advertise<geometry_msgs::TwistStamped>("/girona500/tp_controller/tasks/auv_configuration/feedforward", 5, false);
 
-        pubTPdummy = nh_.advertise<geometry_msgs::PoseStamped>("/girona1000/tp_controller/tasks/auv_configuration/target", 5, false);
+        pubTPdummy = nh_.advertise<geometry_msgs::PoseStamped>("/girona500/tp_controller/tasks/auv_configuration/target", 5, false);
 
         timer_ = nh_.createTimer(ros::Rate(10), &PID::update, this, false, false);
         as_.start();
@@ -177,7 +177,7 @@ public:
         // std::cout << "controlando\n";
         feedback_.target = setPoint;
 
-        t = tfBuffer.lookupTransform("world_ned", "girona1000/origin", ros::Time(0));
+        t = tfBuffer.lookupTransform("world_ned", "girona500/origin", ros::Time(0));
         feedback_.current.position.x = t.transform.translation.x;
         feedback_.current.position.y = t.transform.translation.y;
         feedback_.current.position.z = t.transform.translation.z;
@@ -211,9 +211,9 @@ public:
         derivative = (error.getOrigin().x() - last_error_x) / dt.toSec();
         pid_err(0, 2) = 0.3 * derivative;
         derivative = (error.getOrigin().y() - last_error_y) / dt.toSec();
-        pid_err(1, 2) = 0.5 * derivative;
+        pid_err(1, 2) = 0.3 * derivative;
         derivative = (error.getOrigin().z() - last_error_z) / dt.toSec();
-        pid_err(2, 2) = 0.5 * derivative;
+        pid_err(2, 2) = 0.3 * derivative;
 
         last_error_x = error.getOrigin().x();
         last_error_y = error.getOrigin().y();
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
 
     PID pid(ros::this_node::getName());
 
-    ros::Subscriber sub = n.subscribe(ros::this_node::getName() + "/vel_target", 10, &PID::changeVel, &pid);
+    ros::Subscriber sub = n.subscribe(ros::this_node::getName() + "/vel_target", 1, &PID::changeVel, &pid);
 
     ros::spin();
 }
