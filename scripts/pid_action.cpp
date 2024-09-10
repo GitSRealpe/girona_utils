@@ -177,7 +177,7 @@ public:
         // std::cout << "controlando\n";
         feedback_.target = setPoint;
 
-        t = tfBuffer.lookupTransform("world_ned", "girona1000/origin", ros::Time(0));
+        t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
         feedback_.current.position.x = t.transform.translation.x;
         feedback_.current.position.y = t.transform.translation.y;
         feedback_.current.position.z = t.transform.translation.z;
