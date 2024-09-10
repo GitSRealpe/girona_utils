@@ -67,7 +67,7 @@ add_action_files(
   DIRECTORY action 
   FILES 
   PID.action
-  Path.action)
+  Pursuit.action)
 
 generate_messages(
  DEPENDENCIES
@@ -110,6 +110,7 @@ list(APPEND LIBRARIES
 
 
 add_script(pid_action scripts)
+add_script(pursuit_controller scripts)
 # add_script(path_following_server scripts)
 # add_script(path_following_server_tp scripts)
 # add_script(odom2tf scripts/utils)
