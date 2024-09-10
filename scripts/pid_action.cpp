@@ -209,7 +209,7 @@ public:
 
         // derivative smooths
         derivative = (error.getOrigin().x() - last_error_x) / dt.toSec();
-        pid_err(0, 2) = 0.5 * derivative;
+        pid_err(0, 2) = 0.3 * derivative;
         derivative = (error.getOrigin().y() - last_error_y) / dt.toSec();
         pid_err(1, 2) = 0.5 * derivative;
         derivative = (error.getOrigin().z() - last_error_z) / dt.toSec();
