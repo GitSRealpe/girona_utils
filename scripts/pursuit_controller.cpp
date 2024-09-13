@@ -239,7 +239,6 @@ public:
         if (discriminant < 0)
         {
             // no intersection
-            std::cout << "no intersections\n";
             return intersections;
         }
         else
@@ -284,10 +283,12 @@ public:
         switch (intersections.size())
         {
         case 0:
+            std::cout << "no intersections\n";
             // last lead point or waypoint in path
             setPoint = path.poses[waypoint_index].pose;
             break;
         case 1:
+            std::cout << "one intersection\n";
             setPoint.position.x = intersections[0][0];
             setPoint.position.y = intersections[0][1];
             setPoint.position.z = intersections[0][2];
@@ -302,6 +303,7 @@ public:
 
             break;
         case 2:
+            std::cout << "two intersections\n";
             dist1 = ((p1 - intersections[0]).pow(2)).sum();
             dist2 = ((p1 - intersections[1]).pow(2)).sum();
             // the lead point is the one close to the next goal
@@ -313,6 +315,7 @@ public:
 
             if ((sph - p1).pow(2).sum() < (intersections[i] - p1).pow(2).sum())
             {
+                // if point is inside the sphere advance to next one
                 waypoint_index++;
                 return;
             }
@@ -329,16 +332,24 @@ public:
             break;
         }
 
-        if (waypoint_index > path.poses.size() - 1)
+        if (waypoint_index < path.poses.size())
+        {
+            std::cout << "last waypoint reached" << "\n";
+            markers.markers.at(1).pose = setPoint;
+            markers.markers.at(2).pose = path.poses[waypoint_index].pose;
+            setPoint.orientation = path.poses[waypoint_index].pose.orientation;
+        }
+        else
         {
             setPoint = path.poses.back().pose;
         }
 
-        markers.markers.at(1).pose = setPoint;
-        markers.markers.at(2).pose = path.poses[waypoint_index].pose;
         pubviz.publish(markers);
 
-        setPoint.orientation = path.poses[waypoint_index].pose.orientation;
+        feedback_.waypoint = waypoint_index;
+        feedback_.setPoint = setPoint;
+        as_.publishFeedback(feedback_);
+
         tf2::fromMsg(t.transform, mat_curr);
         tf2::fromMsg(setPoint, mat_goal);
         error = mat_curr.inverseTimes(mat_goal);
