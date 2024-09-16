@@ -56,6 +56,8 @@ public:
     double max_rot_vel = MAX_ROTATION_SPEED;
 
     std::string interface = "nothing";
+    std::string base_link;
+    std::string velocity_topic;
 
     visualization_msgs::Marker sphere_m;
     visualization_msgs::Marker intersection1_m;
@@ -74,7 +76,11 @@ public:
         nhp.getParam("max_vel", max_vel);
         nhp.getParam("max_rot_vel", max_rot_vel);
         nhp.getParam("output_interface", interface);
+        nhp.getParam("base_link", base_link);
+        nhp.getParam("velocity_topic", velocity_topic);
         std::cout << "using " << interface << " as velocity controller \n";
+        std::cout << "using " << base_link << " as base_link \n";
+        std::cout << "using " << velocity_topic << " as velocity topic \n";
         std::cout << "max velocity set at " << max_vel << " m/s \n";
         std::cout << "max rotation velocity set at " << max_rot_vel << " m/s \n";
 
@@ -116,7 +122,7 @@ public:
         {
             try
             {
-                t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
+                t = tfBuffer.lookupTransform("world_ned", base_link, ros::Time(0));
                 std::cout << "transform gotten\n";
                 std::cout << t.transform.translation << "\n";
                 break;
@@ -133,7 +139,7 @@ public:
         // prev_t = ros::Time::now();
         prev_t = ros::Time(0);
 
-        pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, false);
+        pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>(velocity_topic, 5, false);
         timer_ = nh_.createTimer(ros::Rate(10), &PursuitController::update, this, false, false);
         as_.start();
     }
@@ -204,7 +210,7 @@ public:
     {
         std::vector<Eigen::Array3d> intersections;
 
-        t = tfBuffer.lookupTransform("world_ned", "girona1000/base_link", ros::Time(0));
+        t = tfBuffer.lookupTransform("world_ned", base_link, ros::Time(0));
         sph[0] = t.transform.translation.x;
         sph[1] = t.transform.translation.y;
         sph[2] = t.transform.translation.z;
