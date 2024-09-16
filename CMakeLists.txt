@@ -50,7 +50,7 @@ list(APPEND CATKIN_SOURCES
     iauv_kinematic_control
   )
 
-find_package(catkin REQUIRED COMPONENTS ${CATKIN_SOURCES} message_generation actionlib)
+find_package(catkin REQUIRED COMPONENTS ${CATKIN_SOURCES} message_generation actionlib genmsg actionlib_msgs)
 
 catkin_python_setup()
 
