@@ -47,7 +47,6 @@ list(APPEND CATKIN_SOURCES
     octomap_msgs
     octomap_ros
     rviz_visual_tools
-    iauv_kinematic_control
   )
 
 find_package(catkin REQUIRED COMPONENTS ${CATKIN_SOURCES} message_generation actionlib genmsg actionlib_msgs)

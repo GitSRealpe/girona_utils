@@ -45,10 +45,7 @@ public:
     Eigen::Matrix3d pid_err;
 
     ros::Publisher pubCOLA2;
-    ros::Publisher pubTPvel;
-    ros::Publisher pubTPdummy;
     cola2_msgs::BodyVelocityReq vel_req;
-    geometry_msgs::TwistStamped vel_tp_req;
 
     double max_vel = MAX_SPEED;
     double max_rot_vel = MAX_ROTATION_SPEED;
@@ -94,9 +91,6 @@ public:
         prev_t = ros::Time(0);
 
         pubCOLA2 = nh_.advertise<cola2_msgs::BodyVelocityReq>("/girona1000/controller/body_velocity_req", 5, false);
-        pubTPvel = nh_.advertise<geometry_msgs::TwistStamped>("/girona1000/tp_controller/tasks/auv_configuration/feedforward", 5, false);
-
-        pubTPdummy = nh_.advertise<geometry_msgs::PoseStamped>("/girona1000/tp_controller/tasks/auv_configuration/target", 5, false);
 
         timer_ = nh_.createTimer(ros::Rate(10), &PID::update, this, false, false);
         as_.start();
@@ -119,22 +113,6 @@ public:
         vel_req.twist.angular.z = std::clamp(0.7 * yaw, -max_rot_vel, max_rot_vel);
         vel_req.header.stamp = ros::Time::now();
         pubCOLA2.publish(vel_req);
-    }
-
-    void sendVelTP(Eigen::Matrix3d err, double yaw)
-    {
-        vel_tp_req.header.frame_id = "world_ned";
-        vel_tp_req.header.stamp = ros::Time::now();
-        vel_tp_req.twist.linear.x = std::clamp(err.row(0).sum(), -max_vel, max_vel);
-        vel_tp_req.twist.linear.y = std::clamp(err.row(1).sum(), -max_vel, max_vel);
-        vel_tp_req.twist.linear.z = std::clamp(err.row(2).sum(), -max_vel, max_vel);
-        vel_tp_req.twist.angular.z = std::clamp(0.7 * yaw, -max_rot_vel, max_rot_vel);
-        pubTPvel.publish(vel_tp_req);
-        geometry_msgs::PoseStamped dummy_pose;
-        dummy_pose.header.frame_id = "world_ned";
-        dummy_pose.header.stamp = ros::Time::now();
-        dummy_pose.pose.orientation.w = 1;
-        pubTPdummy.publish(dummy_pose);
     }
 
     void changeVel(const std_msgs::Float32ConstPtr msg)
@@ -233,14 +211,7 @@ public:
         std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -max_rot_vel, max_rot_vel) << "\n";
         // std::cout << "raw_yaw: " << err_yaw << "\n";
 
-        if (interface == "tp_controller")
-        {
-            sendVelTP(pid_err, err_yaw);
-        }
-        else
-        {
-            sendVelCOLA2(pid_err, err_yaw);
-        }
+        sendVelCOLA2(pid_err, err_yaw);
 
         prev_t = ros::Time::now();
         // ros::Duration(0.1).sleep();
