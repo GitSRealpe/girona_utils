@@ -174,6 +174,7 @@ public:
         // reset helper variables
         // KLSDALSDLASDKJL
         // accept the new goal
+        timer_.stop();
         auto goal = as_.acceptNewGoal();
         path = goal->path;
         radius = goal->radius;
