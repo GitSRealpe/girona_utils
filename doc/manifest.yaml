@@ -1,0 +1,41 @@
+actions:
+- PID
+- Pursuit
+- Path
+authors: ''
+brief: ''
+bugtracker: ''
+depends:
+- tf2_ros
+- message_filters
+- catkin
+- iauv_kinematic_control
+- nav_msgs
+- octomap_ros
+- eigen_conversions
+- interactive_markers
+- tf2
+- rviz_visual_tools
+- tf
+- eigen
+- rospy
+- roscpp
+- std_msgs
+- laser_geometry
+- pluginlib
+- filters
+- cola2_msgs
+- message_runtime
+- message_generation
+- geometry_msgs
+- octomap_msgs
+- visualization_msgs
+description: The girona_utils package
+license: TODO
+maintainers: srealper <srealper@todo.todo>
+msgs:
+- PathStatus
+package_type: package
+repo_url: ''
+srvs: []
+url: ''
