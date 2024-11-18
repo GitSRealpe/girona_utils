@@ -155,10 +155,6 @@ public:
         path = goal->path;
         radius = goal->radius;
 
-        sphere_m.scale.x = radius * 2;
-        sphere_m.scale.y = radius * 2;
-        sphere_m.scale.z = radius * 2;
-
         waypoint_index = 1;
 
         // as_.isPreemptRequested(); ?

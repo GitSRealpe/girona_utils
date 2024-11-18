@@ -1,0 +1,9 @@
+#goal definition
+string target_frame
+geometry_msgs/Pose offset
+---
+#result definition
+bool done
+---
+#feedback
+geometry_msgs/Pose error
