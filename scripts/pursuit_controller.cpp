@@ -174,6 +174,9 @@ public:
         // reset helper variables
         // KLSDALSDLASDKJL
         // accept the new goal
+
+        feedback_.waypoint = 0;
+        as_.publishFeedback(feedback_);
         timer_.stop();
         auto goal = as_.acceptNewGoal();
         path = goal->path;
