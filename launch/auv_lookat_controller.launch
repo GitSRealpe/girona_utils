@@ -1,0 +1,13 @@
+<launch>
+
+    <arg name="robot" default="girona500" doc="wich robot are you using?"/>
+    <node name="lookat_controller" pkg="girona_utils" type="lookat_controller" output="screen">
+        <param name="max_vel" value="0.3"/>
+        <param name="max_rot_vel" value="0.35"/>
+        <param name="output_interface" value="cola2_controller"/>
+        <param name="base_link" value="$(arg robot)/base_link"/>
+        <param name="velocity_topic" value="/$(arg robot)/controller/body_velocity_req"/>
+        <param name="camera_frame" value="/$(arg robot)/stereo_rigth"/>
+    </node>
+
+</launch>
