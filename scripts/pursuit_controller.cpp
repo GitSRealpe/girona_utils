@@ -293,12 +293,12 @@ public:
         switch (intersections.size())
         {
         case 0:
-            std::cout << "no intersections\n";
+            // std::cout << "no intersections\n";
             // last lead point or waypoint in path
             setPoint = path.poses[waypoint_index].pose;
             break;
         case 1:
-            std::cout << "one intersection\n";
+            // std::cout << "one intersection\n";
             setPoint.position.x = intersections[0][0];
             setPoint.position.y = intersections[0][1];
             setPoint.position.z = intersections[0][2];
@@ -313,7 +313,7 @@ public:
 
             break;
         case 2:
-            std::cout << "two intersections\n";
+            // std::cout << "two intersections\n";
             dist1 = ((p1 - intersections[0]).pow(2)).sum();
             dist2 = ((p1 - intersections[1]).pow(2)).sum();
             // the lead point is the one close to the next goal
@@ -344,13 +344,14 @@ public:
 
         if (waypoint_index < path.poses.size())
         {
-            std::cout << "last waypoint reached" << "\n";
+
             markers.markers.at(1).pose = setPoint;
             markers.markers.at(2).pose = path.poses[waypoint_index].pose;
             setPoint.orientation = path.poses[waypoint_index].pose.orientation;
         }
         else
         {
+            std::cout << "last waypoint reached" << "\n";
             setPoint = path.poses.back().pose;
         }
 
@@ -393,10 +394,10 @@ public:
         // normalizarlo lo vuelve unitario siempre
         // pid_err.row(0).stableNormalize()
 
-        std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -max_vel, max_vel) << "\n";
-        std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -max_vel, max_vel) << "\n";
-        std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
-        std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -max_rot_vel, max_rot_vel) << "\n";
+        // std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -max_vel, max_vel) << "\n";
+        // std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -max_vel, max_vel) << "\n";
+        // std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
+        // std::cout << "yaw action:" << std::clamp(0.7 * err_yaw, -max_rot_vel, max_rot_vel) << "\n";
         // std::cout << "raw_yaw: " << err_yaw << "\n";
 
         sendVelCOLA2(pid_err, err_yaw);
