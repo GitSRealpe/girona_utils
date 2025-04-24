@@ -353,6 +353,11 @@ public:
         {
             std::cout << "last waypoint reached" << "\n";
             setPoint = path.poses.back().pose;
+
+            girona_utils::PursuitResult res;
+            res.success = true;
+            as_.setSucceeded(res);
+            timer_.stop();
         }
 
         pubviz.publish(markers);
