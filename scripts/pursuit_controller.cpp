@@ -390,6 +390,9 @@ public:
         last_error_y = error.getOrigin().y();
         last_error_z = error.getOrigin().z();
 
+        // normalizarlo lo vuelve unitario siempre
+        // pid_err.row(0).stableNormalize()
+
         std::cout << "x action:" << std::clamp(pid_err.row(0).sum(), -max_vel, max_vel) << "\n";
         std::cout << "y action:" << std::clamp(pid_err.row(1).sum(), -max_vel, max_vel) << "\n";
         std::cout << "z action:" << std::clamp(pid_err.row(2).sum(), -max_vel, max_vel) << "\n";
